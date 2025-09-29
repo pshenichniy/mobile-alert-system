@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Mobile Alert System</string>
+    <string name="service_running">Сервис активен</string>
+    <string name="service_stopped">Сервис остановлен</string>
+</resources>
