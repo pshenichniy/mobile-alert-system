@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Панель управления оповещениями</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 28px;
+        }
+
+        .status {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border-left: 4px solid #28a745;
+        }
+
+        .status.alert {
+            border-left-color: #dc3545;
+            background: #fff5f5;
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            flex: 1;
+            min-width: 120px;
+            padding: 15px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-activate {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-activate:hover {
+            background: #c82333;
+            transform: translateY(-2px);
+        }
+
+        .btn-deactivate {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-deactivate:hover {
+            background: #218838;
+            transform: translateY(-2px);
+        }
+
+        .message-input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 16px;
+            margin-bottom: 20px;
+            transition: border-color 0.3s ease;
+        }
+
+        .message-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .server-info {
+            background: #e9ecef;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            font-size: 14px;
+        }
+
+        .alert-active {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { background-color: #fff5f5; }
+            50% { background-color: #ffe6e6; }
+            100% { background-color: #fff5f5; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>🚨 Панель управления оповещениями</h1>
+
+    <div id="status" class="status">
+        <strong>Статус:</strong> <span id="statusText">Загрузка...</span><br>
+        <strong>Последняя активация:</strong> <span id="lastActive">-</span>
+    </div>
+
+    <div class="controls">
+        <button class="btn-activate" onclick="activateAlert()">
+            🔔 АКТИВИРОВАТЬ ТРЕВОГУ
+        </button>
+        <button class="btn-deactivate" onclick="deactivateAlert()">
+            ✅ ВЫКЛЮЧИТЬ ТРЕВОГУ
+        </button>
+    </div>
+
+    <div>
+        <input type="text" id="message" class="message-input"
+               placeholder="Введите сообщение для клиентов..."
+               value="🚨 Внимание! Важное оповещение!">
+    </div>
+
+    <div class="server-info">
+        <strong>Информация о сервере:</strong><br>
+        <span id="serverInfo">Подключение...</span>
+    </div>
+</div>
+
+<script>
+    const API_BASE = '/api';
+
+    // Обновление статуса каждые 3 секунды
+    setInterval(updateStatus, 3000);
+    updateStatus();
+    getServerInfo();
+
+    async function updateStatus() {
+        try {
+            const response = await fetch(`${API_BASE}/info`);
+            const data = await response.json();
+
+            const statusElement = document.getElementById('status');
+            const statusText = document.getElementById('statusText');
+            const lastActive = document.getElementById('lastActive');
+
+            if (data.state.actionEnabled) {
+                statusText.textContent = '🚨 ТРЕВОГА АКТИВИРОВАНА';
+                statusText.style.color = '#dc3545';
+                statusElement.classList.add('alert', 'alert-active');
+                lastActive.textContent = new Date(data.state.lastActivated).toLocaleString('ru-RU');
+            } else {
+                statusText.textContent = '✅ Система в норме';
+                statusText.style.color = '#28a745';
+                statusElement.classList.remove('alert', 'alert-active');
+                lastActive.textContent = '-';
+            }
+        } catch (error) {
+            console.error('Ошибка получения статуса:', error);
+            document.getElementById('statusText').textContent = '❌ Ошибка подключения';
+        }
+    }
+
+    async function getServerInfo() {
+        try {
+            const response = await fetch(`${API_BASE}/info`);
+            const data = await response.json();
+            document.getElementById('serverInfo').textContent =
+                `Версия ${data.version} | Uptime: ${Math.round(data.uptime)}с | Клиентов: ${data.state.clients.length}`;
+        } catch (error) {
+            document.getElementById('serverInfo').textContent = 'Ошибка подключения к серверу';
+        }
+    }
+
+    async function activateAlert() {
+        const message = document.getElementById('message').value;
+
+        try {
+            const response = await fetch(`${API_BASE}/activate`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ message })
+            });
+
+            const result = await response.json();
+            alert('✅ ' + result.message);
+            updateStatus();
+        } catch (error) {
+            alert('❌ Ошибка активации: ' + error.message);
+        }
+    }
+
+    async function deactivateAlert() {
+        try {
+            const response = await fetch(`${API_BASE}/deactivate`, {
+                method: 'POST'
+            });
+
+            const result = await response.json();
+            alert('✅ ' + result.message);
+            updateStatus();
+        } catch (error) {
+            alert('❌ Ошибка деактивации: ' + error.message);
+        }
+    }
+</script>
+</body>
+</html>
